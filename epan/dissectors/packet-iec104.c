@@ -45,6 +45,7 @@ void proto_reg_handoff_iec104(void);
 #define MAXS 256
 
 static dissector_handle_t iec104asdu_handle;
+static dissector_table_t iec104asdu_table;
 
 /* the asdu header structure */
 struct asduheader {
@@ -1071,6 +1072,8 @@ static int dissect_iec104asdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 	proto_item * itSignal = NULL;
 	proto_tree * trSignal;
 
+	tvbuff_t *next_tvb;
+
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "104asdu");
 
 	it104 = proto_tree_add_item(tree, proto_iec104asdu, tvb, 0, -1, ENC_NA);
@@ -1370,6 +1373,9 @@ static int dissect_iec104asdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 			proto_tree_add_item(it104tree, hf_ioa, tvb, offset, 3, ENC_LITTLE_ENDIAN);
 			break;
 	} /* end 'switch (asdu_typeid)' */
+
+	next_tvb = tvb_new_subset_remaining(tvb, offset);
+	dissector_try_uint_new(iec104asdu_table, asduh.Addr, next_tvb, pinfo, tree, TRUE, data);
 
 	return tvb_captured_length(tvb);
 }
@@ -1846,6 +1852,10 @@ proto_register_iec104asdu(void)
 	proto_register_subtree_array(ett_as, array_length(ett_as));
 	expert_iec104 = expert_register_protocol(proto_iec104asdu);
 	expert_register_field_array(expert_iec104, ei, array_length(ei));
+
+	iec104asdu_table = register_dissector_table("104asdu.addr",
+		"IEC 60870-5-104-Asdu address", proto_iec104asdu,
+		FT_UINT16, BASE_DEC, DISSECTOR_TABLE_NOT_ALLOW_DUPLICATE);
 }
 
 
